@@ -1,35 +1,33 @@
 unit MQTTReadThread;
-
+
 interface
 
 uses
   Classes,
   SysUtils,
-  {$IFDEF MSWINDOWS}
+{$IFDEF MSWINDOWS}
   Windows,
-  {$ENDIF}
+{$ENDIF}
   Generics.Collections,
   SyncObjs,
 
-
-  //==============================================================================
+  // ==============================================================================
   // HammerOh
   // blcksock;
   IdTCPClient, IdGlobal,
-  //==============================================================================
+  // ==============================================================================
   MQTTHeaders;
 
 type
-  //==============================================================================
+  // ==============================================================================
   // HammerOh
   // PTCPBlockSocket = ^TTCPBlockSocket;
-  //==============================================================================
-
+  // ==============================================================================
 
   TMQTTRecvUtilities = class
-    public
-      class function MSBLSBToInt(ALengthBytes: TBytes): integer;
-      class function RLBytesToInt(ARlBytes: TBytes): Integer;
+  public
+    class function MSBLSBToInt(ALengthBytes: TBytes): Integer;
+    class function RLBytesToInt(ARlBytes: TBytes): Integer;
   end;
 
   TUnparsedMsg = record
@@ -42,14 +40,11 @@ type
   TMQTTReadThread = class(TThread)
   private
     { Private declarations }
-    //==============================================================================
+    // ==============================================================================
     // HammerOh
     // FPSocket: TTCPBlockSocket;
     FPSocket: TIdTCPClient;
-    //==============================================================================
-
-
-
+    // ==============================================================================
 
     FCSock: TCriticalSection;
     FCurrentMsg: TUnparsedMsg;
@@ -67,34 +62,37 @@ type
     FPubRecEvent: TPubRecEvent;
     FPubCompEvent: TPubCompEvent;
 
-
     procedure ProcessMessage;
-    function readSingleString(const dataStream: TBytes; const indexStartAt: Integer; var StringRead: string): integer;
-    function readMessageId(const dataStream: TBytes; const indexStartAt: Integer;  var messageId: integer): integer;
+    function readSingleString(const dataStream: TBytes;
+      const indexStartAt: Integer; var StringRead: string): Integer;
+    function readMessageId(const dataStream: TBytes;
+      const indexStartAt: Integer; var messageId: Integer): Integer;
     function readStringWithoutPrefix(const dataStream: TBytes;
-      const indexStartAt: Integer; var StringRead: string): integer;
+      const indexStartAt: Integer; var StringRead: string): Integer;
   protected
     procedure CleanStart;
     procedure Execute; override;
   public
-    //==============================================================================
+    // ==============================================================================
     // HammerOh
     // constructor Create(Socket: TTCPBlockSocket; CSSock: TCriticalSection);
-    constructor Create(var Socket: TIdTCPClient;var CSSock: TCriticalSection);
-    //==============================================================================
-
+    constructor Create(var Socket: TIdTCPClient; var CSSock: TCriticalSection);
+    // ==============================================================================
 
     // Event properties.
-    property OnConnAck : TConnAckEvent read FConnAckEvent write FConnAckEvent;
-    property OnPublish : TPublishEvent read FPublishEvent write FPublishEvent;
-    property OnPingResp : TPingRespEvent read FPingRespEvent write FPingRespEvent;
-    property OnPingReq : TPingRespEvent read FPingRespEvent write FPingRespEvent;
-    property OnSubAck : TSubAckEvent read FSubAckEvent write FSubAckEvent;
-    property OnUnSubAck : TUnSubAckEvent read FUnSubAckEvent write FUnSubAckEvent;
-    property OnPubAck : TUnSubAckEvent read FUnSubAckEvent write FUnSubAckEvent;
-    property OnPubRec : TUnSubAckEvent read FUnSubAckEvent write FUnSubAckEvent;
-    property OnPubRel : TUnSubAckEvent read FUnSubAckEvent write FUnSubAckEvent;
-    property OnPubComp : TUnSubAckEvent read FUnSubAckEvent write FUnSubAckEvent;
+    property OnConnAck: TConnAckEvent read FConnAckEvent write FConnAckEvent;
+    property OnPublish: TPublishEvent read FPublishEvent write FPublishEvent;
+    property OnPingResp: TPingRespEvent read FPingRespEvent
+      write FPingRespEvent;
+    property OnPingReq: TPingReqEvent read FPingReqEvent write FPingReqEvent;
+    property OnSubAck: TSubAckEvent read FSubAckEvent write FSubAckEvent;
+    property OnUnSubAck: TUnSubAckEvent read FUnSubAckEvent
+      write FUnSubAckEvent;
+    property OnPubAck: TPubAckEvent read FPubAckEvent write FPubAckEvent;
+    property OnPubRec: TPubRecEvent read FPubRecEvent write FPubRecEvent;
+    property OnPubRel: TPubRelEvent read FPubRelEvent write FPubRelEvent;
+    property OnPubComp: TPubCompEvent read FPubCompEvent write FPubCompEvent;
+
   end;
 
 implementation
@@ -102,10 +100,11 @@ implementation
 uses
   MQTT;
 
-class function TMQTTRecvUtilities.MSBLSBToInt(ALengthBytes: TBytes): integer;
+class function TMQTTRecvUtilities.MSBLSBToInt(ALengthBytes: TBytes): Integer;
 begin
   Assert(ALengthBytes <> nil, 'Must not pass nil to this method');
-  Assert(Length(ALengthBytes) = 2, 'The MSB-LSB 2 bytes structure must be 2 Bytes in length');
+  Assert(Length(ALengthBytes) = 2,
+    'The MSB-LSB 2 bytes structure must be 2 Bytes in length');
 
   Result := 0;
   Result := ALengthBytes[0] shl 8;
@@ -114,8 +113,8 @@ end;
 
 class function TMQTTRecvUtilities.RLBytesToInt(ARlBytes: TBytes): Integer;
 var
-  multi: integer;
-  i: integer;
+  multi: Integer;
+  i: Integer;
   digit: Byte;
 begin
   Assert(ARlBytes <> nil, 'Must not pass nil to this method');
@@ -136,8 +135,7 @@ begin
   end;
 end;
 
-procedure AppendBytes(var DestArray: TBytes;
-  const NewBytes: TBytes);
+procedure AppendBytes(var DestArray: TBytes; const NewBytes: TBytes);
 var
   DestLen: Integer;
 begin
@@ -156,11 +154,12 @@ begin
   FCurrentRecvState := TMQTTRecvState.FixedHeaderByte;
 end;
 
-//==============================================================================
+// ==============================================================================
 // HammerOh
 // constructor TMQTTReadThread.Create(Socket: TTCPBlockSocket; CSSock: TCriticalSection);
-constructor TMQTTReadThread.Create(var Socket: TIdTCPClient; var CSSock: TCriticalSection);
-//==============================================================================
+constructor TMQTTReadThread.Create(var Socket: TIdTCPClient;
+  var CSSock: TCriticalSection);
+// ==============================================================================
 begin
   inherited Create(false);
 
@@ -176,20 +175,20 @@ var
   CurrentMessage: TUnparsedMsg;
   RLInt: Integer;
   Buffer: TBytes;
-  i: integer;
-  //==============================================================================
+  i: Integer;
+  // ==============================================================================
   // HammerOh
   intSize: Integer;
   indyBuffer: TIdBytes;
   intCount: Integer;
   intTemp: Integer;
   intIndex: Integer;
-  //==============================================================================
+  // ==============================================================================
 begin
   while not Terminated do
-    begin
-      try
-        if FPSocket.IOHandler.CheckForDataOnSource(1000) then
+  begin
+    try
+      if FPSocket.IOHandler.CheckForDataOnSource(1000) then
         if not FPSocket.IOHandler.InputBufferIsEmpty then
         begin
           intSize := FPSocket.IOHandler.InputBuffer.Size;
@@ -202,7 +201,8 @@ begin
                 begin
                   CurrentMessage.FixedHeader := 0;
                   CurrentMessage.FixedHeader := indyBuffer[i];
-                  if (CurrentMessage.FixedHeader <> 0) then FCurrentRecvState := TMQTTRecvState.RemainingLength;
+                  if (CurrentMessage.FixedHeader <> 0) then
+                    FCurrentRecvState := TMQTTRecvState.RemainingLength;
                 end;
 
               TMQTTRecvState.RemainingLength:
@@ -215,7 +215,7 @@ begin
                   begin
                     FCurrentMsg := CurrentMessage;
                     Synchronize(ProcessMessage);
-                    CurrentMessage := Default(TUnparsedMsg);
+                    CurrentMessage := Default (TUnparsedMsg);
                     FCurrentRecvState := TMQTTRecvState.FixedHeaderByte;
                   end
                   else
@@ -245,7 +245,7 @@ begin
                     begin
                       SetLength(CurrentMessage.Data, RLInt);
                       intCount := 0;
-                      if intIndex = 5  then
+                      if intIndex = 5 then
                       begin
                         CurrentMessage.Data[intCount] := indyBuffer[i];
                         Inc(intCount);
@@ -256,7 +256,7 @@ begin
                     begin
                       FCurrentMsg := CurrentMessage;
                       Synchronize(ProcessMessage);
-                      CurrentMessage := Default(TUnparsedMsg);
+                      CurrentMessage := Default (TUnparsedMsg);
                       FCurrentRecvState := TMQTTRecvState.FixedHeaderByte;
                     end;
                   end;
@@ -270,81 +270,82 @@ begin
                   begin
                     FCurrentMsg := CurrentMessage;
                     Synchronize(ProcessMessage);
-                    CurrentMessage := Default(TUnparsedMsg);
+                    CurrentMessage := Default (TUnparsedMsg);
                     FCurrentRecvState := TMQTTRecvState.FixedHeaderByte;
                   end;
                 end;
             end;
           end;
         end;
-      except
+    except
 
-      end;
+    end;
 
-      (*
+    (*
       FCSock.Acquire;
       try
-        if FPSocket.WaitingDataEx > 0 then
-        begin
-          case FCurrentRecvState of
-            TMQTTRecvState.FixedHeaderByte:
-              begin
-                CurrentMessage.FixedHeader := 0;
-                CurrentMessage.FixedHeader := FPSocket.RecvByte(1000);
-                if ((FPSocket.LastError = 0) and (CurrentMessage.FixedHeader <> 0)) then FCurrentRecvState := TMQTTRecvState.RemainingLength;
-              end;
-            TMQTTRecvState.RemainingLength:
-              begin
-                RLInt := 0;
-
-                SetLength(CurrentMessage.RL, 1);
-                SetLength(Buffer, 1);
-                CurrentMessage.RL[0] := FPSocket.RecvByte(1000);
-                for i := 1 to 4 do
-                begin
-                  if (( CurrentMessage.RL[i - 1] and 128) <> 0) then
-                  begin
-                    Buffer[0] := FPSocket.PeekByte(1000);
-                    AppendBytes(CurrentMessage.RL, Buffer);
-                  end else Break;
-                end;
-
-                RLInt := TMQTTRecvUtilities.RLBytesToInt(CurrentMessage.RL);
-
-                if (FPSocket.LastError = 0) then FCurrentRecvState := TMQTTRecvState.Data;
-              end;
-            TMQTTRecvState.Data:
-              begin
-                if (RLInt > 0)  then
-                begin
-                  SetLength(CurrentMessage.Data, RLInt);
-                  RLInt := RLInt - FPSocket.RecvBufferEx(Pointer(CurrentMessage.Data), RLInt, 1000);
-                end;
-
-                if ((FPSocket.LastError = 0) and (RLInt = 0)) then
-                begin
-                  FCurrentMsg := CurrentMessage;
-                  Synchronize(ProcessMessage);
-                  CurrentMessage := Default(TUnparsedMsg);
-                  FCurrentRecvState := TMQTTRecvState.FixedHeaderByte;
-                end;
-              end;
-          end;  // end of Recv state case
-        end; // end of waitingdata check
-      finally
-        FCSock.Release;
+      if FPSocket.WaitingDataEx > 0 then
+      begin
+      case FCurrentRecvState of
+      TMQTTRecvState.FixedHeaderByte:
+      begin
+      CurrentMessage.FixedHeader := 0;
+      CurrentMessage.FixedHeader := FPSocket.RecvByte(1000);
+      if ((FPSocket.LastError = 0) and (CurrentMessage.FixedHeader <> 0)) then FCurrentRecvState := TMQTTRecvState.RemainingLength;
       end;
-      *)
-    end;
+      TMQTTRecvState.RemainingLength:
+      begin
+      RLInt := 0;
+
+      SetLength(CurrentMessage.RL, 1);
+      SetLength(Buffer, 1);
+      CurrentMessage.RL[0] := FPSocket.RecvByte(1000);
+      for i := 1 to 4 do
+      begin
+      if (( CurrentMessage.RL[i - 1] and 128) <> 0) then
+      begin
+      Buffer[0] := FPSocket.PeekByte(1000);
+      AppendBytes(CurrentMessage.RL, Buffer);
+      end else Break;
+      end;
+
+      RLInt := TMQTTRecvUtilities.RLBytesToInt(CurrentMessage.RL);
+
+      if (FPSocket.LastError = 0) then FCurrentRecvState := TMQTTRecvState.Data;
+      end;
+      TMQTTRecvState.Data:
+      begin
+      if (RLInt > 0)  then
+      begin
+      SetLength(CurrentMessage.Data, RLInt);
+      RLInt := RLInt - FPSocket.RecvBufferEx(Pointer(CurrentMessage.Data), RLInt, 1000);
+      end;
+
+      if ((FPSocket.LastError = 0) and (RLInt = 0)) then
+      begin
+      FCurrentMsg := CurrentMessage;
+      Synchronize(ProcessMessage);
+      CurrentMessage := Default(TUnparsedMsg);
+      FCurrentRecvState := TMQTTRecvState.FixedHeaderByte;
+      end;
+      end;
+      end;  // end of Recv state case
+      end; // end of waitingdata check
+      finally
+      FCSock.Release;
+      end;
+    *)
+  end;
 end;
 
 procedure TMQTTReadThread.ProcessMessage;
 var
   NewMsg: TUnparsedMsg;
   FHCode: Byte;
-  dataCaret: integer;
+  vFixedHeader: TMQTTFixedHeader;
+  dataCaret: Integer;
   grantedQoS: Array of Integer;
-  I: Integer;
+  i, viMessageId: Integer;
   strTopic, strPayload: string;
 begin
   dataCaret := 0;
@@ -354,117 +355,151 @@ begin
   case FHCode of
     Ord(TMQTTMessageType.CONNACK):
       begin
-        if Length(NewMsg.Data) > 0 then
+        if Length(NewMsg.Data) = 2 then
         begin
-          if Assigned(FConnAckEvent) then OnConnAck(Self, NewMsg.Data[0]);
+          if Assigned(FConnAckEvent) then
+            OnConnAck(Self, NewMsg.Data[1]);
         end;
       end;
     Ord(TMQTTMessageType.PINGREQ):
       begin
-        if Assigned(FPingReqEvent) then OnPingReq(Self);
+        if Assigned(FPingReqEvent) then
+          OnPingReq(Self);
       end;
     Ord(TMQTTMessageType.PINGRESP):
       begin
-        if Assigned(FPingRespEvent) then OnPingResp(Self);
+        if Assigned(FPingRespEvent) then
+          OnPingResp(Self);
       end;
     Ord(TMQTTMessageType.PUBLISH):
       begin
-         // Todo: This only applies for QoS level 0 messages.
-         dataCaret := 0;
-         dataCaret := readSingleString(NewMsg.Data, dataCaret, strTopic);
-         dataCaret := readStringWithoutPrefix(NewMsg.Data, dataCaret, strPayload);
-         if Assigned(FPublishEvent) then OnPublish(Self, strTopic, strPayload);
+        vFixedHeader.Flags := NewMsg.FixedHeader;
+        case vFixedHeader.QoSLevel of
+          0:
+            begin
+              // Todo: This only applies for QoS level 0 messages.
+              dataCaret := 0;
+              dataCaret := readSingleString(NewMsg.Data, dataCaret, strTopic);
+              dataCaret := readStringWithoutPrefix(NewMsg.Data, dataCaret,
+                strPayload);
+              if Assigned(FPublishEvent) then
+                OnPublish(Self, vFixedHeader.QoSLevel, 0, strTopic, strPayload);
+            end;
+          1, 2:
+            begin
+              dataCaret := 0;
+              dataCaret := readSingleString(NewMsg.Data, dataCaret, strTopic);
+              dataCaret := readMessageId(NewMsg.Data, dataCaret, viMessageId);
+              dataCaret := readStringWithoutPrefix(NewMsg.Data, dataCaret,
+                strPayload);
+              if Assigned(FPublishEvent) then
+                OnPublish(Self, vFixedHeader.QoSLevel, viMessageId, strTopic,
+                  strPayload);
+            end;
+        end;
+
       end;
     Ord(TMQTTMessageType.SUBACK):
       begin
         if (Length(NewMsg.Data) > 2) then
         begin
           SetLength(grantedQoS, Length(NewMsg.Data) - 2);
-          for I := 0 to Length(NewMsg.Data) - 1 do
-            begin
-              grantedQoS[i] := NewMsg.Data[i + 2];
-            end;
-          if Assigned(FSubAckEvent) then OnSubAck(Self, TMQTTRecvUtilities.MSBLSBToInt(Copy(NewMsg.Data, 0, 2)), grantedQoS);
+          for i := 0 to Length(NewMsg.Data) - 1 do
+          begin
+            grantedQoS[i] := NewMsg.Data[i + 2];
+          end;
+          if Assigned(FSubAckEvent) then
+            OnSubAck(Self, TMQTTRecvUtilities.MSBLSBToInt(Copy(NewMsg.Data, 0,
+              2)), grantedQoS);
         end;
       end;
     Ord(TMQTTMessageType.UNSUBACK):
       begin
         if Length(NewMsg.Data) = 2 then
-          begin
-            if Assigned(FUnSubAckEvent) then OnUnSubAck(Self, TMQTTRecvUtilities.MSBLSBToInt(NewMsg.Data))
-          end;
+        begin
+          if Assigned(FUnSubAckEvent) then
+            OnUnSubAck(Self, TMQTTRecvUtilities.MSBLSBToInt(NewMsg.Data))
+        end;
       end;
     Ord(TMQTTMessageType.PUBREC):
       begin
         if Length(NewMsg.Data) = 2 then
-          begin
-            if Assigned(FPubRecEvent) then OnPubRec(Self, TMQTTRecvUtilities.MSBLSBToInt(NewMsg.Data))
-          end;
+        begin
+          if Assigned(FPubRecEvent) then
+            OnPubRec(Self, TMQTTRecvUtilities.MSBLSBToInt(NewMsg.Data))
+        end;
       end;
     Ord(TMQTTMessageType.PUBREL):
       begin
         if Length(NewMsg.Data) = 2 then
-          begin
-            if Assigned(FPubRelEvent) then OnPubRel(Self, TMQTTRecvUtilities.MSBLSBToInt(NewMsg.Data))
-          end;
+        begin
+          if Assigned(FPubRelEvent) then
+            OnPubRel(Self, TMQTTRecvUtilities.MSBLSBToInt(NewMsg.Data))
+        end;
       end;
     Ord(TMQTTMessageType.PUBACK):
       begin
         if Length(NewMsg.Data) = 2 then
-          begin
-            if Assigned(FPubAckEvent) then OnPubAck(Self, TMQTTRecvUtilities.MSBLSBToInt(NewMsg.Data))
-          end;
+        begin
+          if Assigned(FPubAckEvent) then
+            OnPubAck(Self, TMQTTRecvUtilities.MSBLSBToInt(NewMsg.Data))
+        end;
       end;
     Ord(TMQTTMessageType.PUBCOMP):
       begin
         if Length(NewMsg.Data) = 2 then
-          begin
-            if Assigned(FPubCompEvent) then OnPubComp(Self, TMQTTRecvUtilities.MSBLSBToInt(NewMsg.Data))
-          end;
+        begin
+          if Assigned(FPubCompEvent) then
+            OnPubComp(Self, TMQTTRecvUtilities.MSBLSBToInt(NewMsg.Data))
+        end;
       end;
   end;
 
 end;
 
 function TMQTTReadThread.readMessageId(const dataStream: TBytes;
-  const indexStartAt: Integer; var messageId: integer): integer;
+  const indexStartAt: Integer; var messageId: Integer): Integer;
 begin
-  messageId := TMQTTRecvUtilities.MSBLSBToInt(Copy(dataStream, indexStartAt, 2));
+  messageId := TMQTTRecvUtilities.MSBLSBToInt
+    (Copy(dataStream, indexStartAt, 2));
   Result := indexStartAt + 2;
 end;
 
 function TMQTTReadThread.readStringWithoutPrefix(const dataStream: TBytes;
-  const indexStartAt: Integer; var StringRead: string): integer;
+  const indexStartAt: Integer; var StringRead: string): Integer;
 var
-  strLength: integer;
+  strLength: Integer;
 begin
-  strLength := Length(dataStream) - (indexStartAt + 1);
+  strLength := Length(dataStream) - (indexStartAt);
   if strLength > 0 then
   begin
-    //==============================================================================
+    // ==============================================================================
     // HammerOh
     // SetString(StringRead, PChar(@dataStream[indexStartAt + 2]), (strLength -1) );
-    StringRead := TEncoding.UTF8.GetString(dataStream, indexStartAt + 2, strLength - 1);
-    //==============================================================================
+    StringRead := TEncoding.UTF8.GetString(dataStream, indexStartAt, strLength);
+    // ==============================================================================
   end;
   Result := indexStartAt + strLength;
 end;
 
 function TMQTTReadThread.readSingleString(const dataStream: TBytes;
-  const indexStartAt: Integer; var StringRead: string): integer;
+  const indexStartAt: Integer; var StringRead: string): Integer;
 var
-  strLength: integer;
+  strLength: Integer;
 begin
-  strLength := TMQTTRecvUtilities.MSBLSBToInt(Copy(dataStream, indexStartAt, 2));
+  strLength := TMQTTRecvUtilities.MSBLSBToInt
+    (Copy(dataStream, indexStartAt, 2));
   if strLength > 0 then
   begin
-    //==============================================================================
+    // ==============================================================================
     // HammerOh
     // SetString(StringRead, PChar(@dataStream[indexStartAt + 2]), strLength);
-    StringRead := TEncoding.UTF8.GetString(dataStream, indexStartAt + 2, strLength);
-    //==============================================================================
+    StringRead := TEncoding.UTF8.GetString(dataStream, indexStartAt + 2,
+      strLength);
+    // ==============================================================================
   end;
-  Result := indexStartAt + strLength;
+  Result := indexStartAt + strLength + 2;
 end;
 
 end.
+
